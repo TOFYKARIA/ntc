@@ -104,9 +104,9 @@ async def remove_module(event):
 # --- Главная асинхронная функция ---
 async def main():
     print("Shizuku запущен. Ожидание событий...")
+    await client.start()  # Подключение к Telegram
     await create_logs_group()  # Создание группы при старте
-    await client.start()
-    await client.run_until_disconnected()
+    await client.run_until_disconnected()  # Ожидание событий
 
 # Запуск бота
 if __name__ == "__main__":
