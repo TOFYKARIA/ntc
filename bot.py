@@ -42,7 +42,7 @@ def get_api_credentials():
 API_ID, API_HASH = get_api_credentials()
 
 # Ваш ID в Telegram (например, можно узнать через @userinfobot)
-OWNER_ID = 123456789  # Замените на ваш Telegram ID
+OWNER_ID = 1688880140  # Замените на ваш Telegram ID
 
 # Инициализация клиента
 client = TelegramClient('shizuku_bot', API_ID, API_HASH)
