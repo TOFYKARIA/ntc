@@ -229,7 +229,7 @@ async def ping(event):
 
 # --- Запуск бота ---
 async def main():
-    print("Бот Shizuku запущен.")
+    print("Бот Shizuku запущен. Ожидайте пункт с набором номера ниже...")
     await client.start()  # Подключение к Telegram
     await client.run_until_disconnected()  # Ожидание событий
 
