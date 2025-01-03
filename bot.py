@@ -199,7 +199,7 @@ async def on_message_edited(event):
         message = f"✏️ Сообщение от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a> изменено в чате "
         if event.chat:
             chat_name = f"@{event.chat.username}" if event.chat.username else f"ID: {event.chat.id}"
-            message += 'https://t.me/{chat_name}/{event.message.id}'>{chat_name}: {event.text}"
+            message += f"<a href='https://t.me/{chat_name}/{event.message.id}'>{chat_name}</a>: {event.text}"
         await send_log_message(message)
 
 @client.on(events.MessageDeleted)
@@ -208,14 +208,14 @@ async def on_message_deleted(event):
         message = f"❌ Сообщение удалено от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a>."
         if event.chat:
             chat_name = f"@{event.chat.username}" if event.chat.username else f"ID: {event.chat.id}"
-            message += f" В чате 'https://t.me/{chat_name}/{event.message.id}'>{chat_name}."
+            message += f" В чате <a href='https://t.me/{chat_name}/{event.message.id}'>{chat_name}</a>."
         await send_log_message(message)
 
 # --- Запуск бота ---
 async def main():
     print("Бот Shizuku запущен. Приятной работы.")
     await client.start()  # Подключение к Telegram
-    await client.run_until_disconnected()  # Ожидание событий
+    await client.run_until_disconnected()  # Ожидание событи
 
 if __name__ == "__main__":
     asyncio.run(main())  # Используем asyncio для запуска асинхронной функции
