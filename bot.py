@@ -3,7 +3,6 @@ import random
 import os
 from telethon import TelegramClient, events
 import requests
-import time
 import json
 
 # Конфигурационный файл для хранения данных
@@ -50,15 +49,9 @@ client = TelegramClient('shizuku_bot', API_ID, API_HASH)
 # Для хранения токена для логирования
 bot_token = None
 
-# Словарь для хранения активных режимов логирования
-log_modes = {
-    "all": False,
-    "ls": False,
-    "chats": {}
-}
-
-# Для хранения текущей авто-операции
-auto_mode = None
+# Переменная для автопечати
+auto_typing = False
+auto_typing_message = ""
 
 # --- Функции для логирования ---
 async def send_log_message(message):
@@ -130,65 +123,49 @@ async def show_tasks(event):
             tasks_status += "Логирование чатов по ID или @username:\n"
             for chat, enabled in log_modes["chats"].items():
                 tasks_status += f"  - {chat}: {'включено' if enabled else 'выключено'}\n"
-
-        # Авто-операции
-        if auto_mode:
-            tasks_status += f"Авто-операция включена: {auto_mode['type']} (тип: {auto_mode['description']})"
-        else:
-            tasks_status += "Авто-операция: отключена"
+        
+        # Статус автотайпа
+        tasks_status += f"Автотайп: {'включен' if auto_typing else 'выключен'}\n"
 
         await event.respond(tasks_status)
     else:
         await event.respond("❌ У вас нет доступа для использования этой команды.")
 
-# --- Команда .авто [1-5] ---
-@client.on(events.NewMessage(pattern=r"\.авто ([1-5])"))
-async def set_auto_mode(event):
-    global auto_mode
+# --- Команда .автотайп ---
+@client.on(events.NewMessage(pattern=r"\.автотайп (.+)"))
+async def start_auto_typing(event):
+    global auto_typing, auto_typing_message
     if event.sender_id == OWNER_ID:
-        mode = int(event.pattern_match.group(1))
-        
-        if auto_mode:  # Если уже включена авто-операция, нельзя включить другую
-            await event.respond("❌ Уже включена авто-операция. Отключите ее командой .-авто.")
+        if auto_typing:
+            await event.respond("❌ Автотайп уже включен.")
             return
+        auto_typing_message = event.pattern_match.group(1)
+        auto_typing = True
+        await event.respond(f"✅ Автотайп включен. Будет имитироваться набор текста для сообщения: {auto_typing_message}")
         
-        if mode == 1:
-            auto_mode = {"type": "Автопечаталка", "description": "Бесконечно отправляются сообщения"}
-            while auto_mode:
-                await client.send_message(OWNER_ID, f"Автопечаталка: {random.choice(['Привет!', 'Как дела?', 'Я тут'])}")
-                await asyncio.sleep(1)
-        elif mode == 2:
-            auto_mode = {"type": "Авто запись кружка", "description": "Бесконечно повторяется запись в чате"}
-            while auto_mode:
-                await client.send_message(OWNER_ID, "Авто запись кружка: повторяю запись...")
-                await asyncio.sleep(1)
-        elif mode == 3:
-            auto_mode = {"type": "Имитация игры", "description": "Бесконечно имитируется действие игры"}
-            while auto_mode:
-                await client.send_message(OWNER_ID, "Играю в игру...")
-                await asyncio.sleep(1)
-        elif mode == 4:
-            auto_mode = {"type": "Отправка фото", "description": "Бесконечно отправляются фото"}
-            while auto_mode:
-                await client.send_file(OWNER_ID, 'path_to_photo.jpg')
-                await asyncio.sleep(1)
-        elif mode == 5:
-            auto_mode = {"type": "Отправка документа", "description": "Бесконечно отправляется документ"}
-            while auto_mode:
-                await client.send_file(OWNER_ID, 'path_to_document.pdf')
-                await asyncio.sleep(1)
+        # Имитируем набор текста
+        async def simulate_typing():
+            for i in range(1, len(auto_typing_message) + 1):
+                # Имитация набора текста (без отправки сообщения)
+                await client.send_typing(OWNER_ID)
+                await asyncio.sleep(random.uniform(0.1, 0.5))  # Задержка между символами
 
-        await event.respond(f"✅ Авто-операция {auto_mode['type']} включена.")
+        # Запускаем имитацию печати
+        await simulate_typing()
+
     else:
         await event.respond("❌ У вас нет доступа для использования этой команды.")
 
-# --- Команда .-авто ---
-@client.on(events.NewMessage(pattern=r"\.\-авто"))
-async def disable_auto_mode(event):
-    global auto_mode
+# --- Команда .автотайп стоп ---
+@client.on(events.NewMessage(pattern=r"\.автотайп стоп"))
+async def stop_auto_typing(event):
+    global auto_typing
     if event.sender_id == OWNER_ID:
-        auto_mode = None
-        await event.respond("✅ Авто-операция отключена.")
+        if not auto_typing:
+            await event.respond("❌ Автотайп не был включен.")
+            return
+        auto_typing = False
+        await event.respond("✅ Автотайп остановлен.")
     else:
         await event.respond("❌ У вас нет доступа для использования этой команды.")
 
@@ -196,40 +173,72 @@ async def disable_auto_mode(event):
 @client.on(events.MessageEdited)
 async def on_message_edited(event):
     if log_modes["all"] or log_modes["ls"]:
-        log_message = f"✏️ Сообщение от {event.sender_id} изменено:\n{event.text}"
+        # Получаем данные пользователя, который изменил сообщение
+        user = await client.get_entity(event.sender_id)
+        chat = await client.get_entity(event.chat_id)
+        
+        # Формируем ссылку на пользователя и чат
+        user_link = f"<a href='tg://user?id={user.id}'>@{user.username if user.username else user.id}</a>"
+        chat_link = f"<a href='https://t.me/c/{str(chat.id)[4:]}/{event.id}'>Чат</a>"
+
+        log_message = f"✏️ Сообщение от {user_link} изменено в чате {chat_link}:\n{event.text}"
         await send_log_message(log_message)
 
     if log_modes["chats"].get(event.chat_id, False):
-        log_message = f"✏️ Сообщение от {event.sender_id} изменено в чате {event.chat_id}:\n{event.text}"
+        user = await client.get_entity(event.sender_id)
+        chat = await client.get_entity(event.chat_id)
+        
+        user_link = f"<a href='tg://user?id={user.id}'>@{user.username if user.username else user.id}</a>"
+        chat_link = f"<a href='https://t.me/c/{str(chat.id)[4:]}/{event.id}'>Чат</a>"
+
+        log_message = f"✏️ Сообщение от {user_link} изменено в чате {chat_link}:\n{event.text}"
         await send_log_message(log_message)
 
 # --- Логирование удаления сообщений ---
 @client.on(events.MessageDeleted)
 async def on_message_deleted(event):
     if log_modes["all"] or log_modes["ls"]:
-        deleted_message = f"❌ Сообщение удалено от {event.sender_id}."
+        user = await client.get_entity(event.sender_id)
+        chat = await client.get_entity(event.chat_id)
+        
+        user_link = f"<a href='tg://user?id={user.id}'>@{user.username if user.username else user.id}</a>"
+        chat_link = f"<a href='https://t.me/c/{str(chat.id)[4:]}/{event.id}'>Чат</a>"
+
+        deleted_message = f"❌ Сообщение удалено от {user_link} в чате {chat_link}."
         await send_log_message(deleted_message)
 
     for chat_id in log_modes["chats"]:
         if chat_id == event.chat_id or log_modes["all"]:
-            deleted_message = f"❌ Сообщение удалено в чате {event.chat_id} от {event.sender_id}."
+            user = await client.get_entity(event.sender_id)
+            chat = await client.get_entity(event.chat_id)
+            
+            user_link = f"<a href='tg://user?id={user.id}'>@{user.username if user.username else user.id}</a>"
+            chat_link = f"<a href='https://t.me/c/{str(chat.id)[4:]}/{event.id}'>Чат</a>"
+
+            deleted_message = f"❌ Сообщение удалено в чате {chat_link} от {user_link}."
             await send_log_message(deleted_message)
 
-# --- Команда .пинг ---
-@client.on(events.NewMessage(pattern=r"\.пинг"))
-async def ping(event):
+# --- Команда .помощь ---
+@client.on(events.NewMessage(pattern=r"\.помощь"))
+async def help_command(event):
     if event.sender_id == OWNER_ID:
-        start_time = time.time()
-        await event.respond("📡 Проверка задержки...")
-        end_time = time.time()
-        delay = round((end_time - start_time) * 1000)  # Задержка в миллисекундах
-        await event.respond(f"📡 Задержка: {delay}ms")
+        help_text = """
+        Список команд:
+        .токен <token> - Установить токен для логирования.
+        .лог все - Включить логирование всех чатов.
+        .лог лс - Включить логирование личных сообщений.
+        .лог <chat> - Включить логирование для конкретного чата.
+        .задачи - Показать текущие задачи.
+        .автотайп <сообщение> - Включить автотайп (имитация набора текста).
+        .автотайп стоп - Остановить автотайп.
+        """
+        await event.respond(help_text)
     else:
         await event.respond("❌ У вас нет доступа для использования этой команды.")
 
 # --- Запуск бота ---
 async def main():
-    print("Бот Shizuku запущен. Ожидайте пункт с набором номера ниже...")
+    print("Бот Shizuku запущен.")
     await client.start()  # Подключение к Telegram
     await client.run_until_disconnected()  # Ожидание событий
 
