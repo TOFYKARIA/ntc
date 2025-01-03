@@ -1,9 +1,8 @@
 import asyncio
-import random
 import os
-from telethon import TelegramClient, events
-import requests
 import json
+import requests
+from telethon import TelegramClient, events
 import time
 
 # Конфигурационный файл для хранения данных
@@ -50,16 +49,15 @@ client = TelegramClient('shizuku_bot', API_ID, API_HASH)
 # Для хранения токена для логирования
 bot_token = None
 
-# Переменная для автопечати
-auto_typing = False
-auto_typing_message = ""
-
-# Режимы логирования (инициализация с пустыми значениями)
+# Словарь для хранения активных режимов логирования
 log_modes = {
-    "all": False,  # Логирование всех чатов
-    "ls": False,   # Логирование личных сообщений
-    "chats": {}    # Логирование для конкретных чатов
+    "all": False,
+    "ls": False,
+    "chats": {}
 }
+
+# Для хранения текущей авто-операции
+auto_mode = None
 
 # --- Функции для логирования ---
 async def send_log_message(message):
@@ -80,33 +78,27 @@ async def set_token(event):
     global bot_token
     if event.sender_id == OWNER_ID:
         bot_token = event.pattern_match.group(1)
-        msg = await event.respond(f"✅ Токен для логирования установлен: {bot_token}")
+        await event.respond(f"✅ Токен для логирования установлен: {bot_token}")
         await send_log_message(f"✅ Токен для логирования установлен.")
-        await msg.edit(f"✅ Токен для логирования установлен: {bot_token}")
     else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
+        await event.respond("❌ У вас нет доступа для использования этой команды.")
 
 # --- Команды .лог ---
 @client.on(events.NewMessage(pattern=r"\.лог все"))
 async def log_all_chats(event):
     if event.sender_id == OWNER_ID:
         log_modes["all"] = True
-        msg = await event.respond("✅ Логирование всех чатов включено.")
-        await msg.edit("✅ Логирование всех чатов включено.")
+        await event.respond("✅ Логирование всех чатов включено.")
     else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
+        await event.respond("❌ У вас нет доступа для использования этой команды.")
 
 @client.on(events.NewMessage(pattern=r"\.лог лс"))
 async def log_ls(event):
     if event.sender_id == OWNER_ID:
         log_modes["ls"] = True
-        msg = await event.respond("✅ Логирование всех личных сообщений включено.")
-        await msg.edit("✅ Логирование всех личных сообщений включено.")
+        await event.respond("✅ Логирование всех личных сообщений включено.")
     else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
+        await event.respond("❌ У вас нет доступа для использования этой команды.")
 
 @client.on(events.NewMessage(pattern=r"\.лог (@?\w+)"))
 async def log_chat(event):
@@ -116,11 +108,9 @@ async def log_chat(event):
             log_modes["chats"][chat_identifier] = True
         else:
             log_modes["chats"][int(chat_identifier)] = True
-        msg = await event.respond(f"✅ Логирование чата '{chat_identifier}' включено.")
-        await msg.edit(f"✅ Логирование чата '{chat_identifier}' включено.")
+        await event.respond(f"✅ Логирование чата '{chat_identifier}' включено.")
     else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
+        await event.respond("❌ У вас нет доступа для использования этой команды.")
 
 # --- Команда .задачи ---
 @client.on(events.NewMessage(pattern=r"\.задачи"))
@@ -139,124 +129,20 @@ async def show_tasks(event):
             tasks_status += "Логирование чатов по ID или @username:\n"
             for chat, enabled in log_modes["chats"].items():
                 tasks_status += f"  - {chat}: {'включено' if enabled else 'выключено'}\n"
-        
-        # Статус автотайпа
-        tasks_status += f"Автотайп: {'включен' if auto_typing else 'выключен'}\n"
 
-        msg = await event.respond(tasks_status)
-        await msg.edit(tasks_status)
+        await event.respond(tasks_status)
     else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
-
-# --- Команда .автотайп ---
-@client.on(events.NewMessage(pattern=r"\.автотайп (.+)"))
-async def start_auto_typing(event):
-    global auto_typing, auto_typing_message
-    if event.sender_id == OWNER_ID:
-        if auto_typing:
-            msg = await event.respond("❌ Автотайп уже включен.")
-            await msg.edit("❌ Автотайп уже включен.")
-            return
-        auto_typing_message = event.pattern_match.group(1)
-        auto_typing = True
-        msg = await event.respond(f"✅ Автотайп включен. Будет имитироваться набор текста для сообщения: {auto_typing_message}")
-        
-        # Имитируем набор текста
-        async def simulate_typing():
-            for i in range(1, len(auto_typing_message) + 1):
-                # Имитация набора текста (без отправки сообщения)
-                await client.send_typing(OWNER_ID)
-                await asyncio.sleep(random.uniform(0.1, 0.5))  # Задержка между символами
-
-        # Запускаем имитацию печати
-        await simulate_typing()
-
-        await msg.edit(f"✅ Автотайп включен. Будет имитироваться набор текста для сообщения: {auto_typing_message}")
-
-    else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
-
-# --- Команда .автотайп стоп ---
-@client.on(events.NewMessage(pattern=r"\.автотайп стоп"))
-async def stop_auto_typing(event):
-    global auto_typing
-    if event.sender_id == OWNER_ID:
-        if not auto_typing:
-            msg = await event.respond("❌ Автотайп не был включен.")
-            await msg.edit("❌ Автотайп не был включен.")
-            return
-        auto_typing = False
-        msg = await event.respond("✅ Автотайп остановлен.")
-        await msg.edit("✅ Автотайп остановлен.")
-    else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
-
-# --- Логирование изменения сообщений ---
-@client.on(events.MessageEdited)
-async def on_message_edited(event):
-    if log_modes["all"] or log_modes["ls"]:
-        # Получаем данные пользователя, который изменил сообщение
-        user = await client.get_entity(event.sender_id)
-        chat = await client.get_entity(event.chat_id)
-        
-        # Формируем ссылку на пользователя и чат
-        user_link = f"<a href='tg://user?id={user.id}'>@{user.username if user.username else user.id}</a>"
-        chat_link = f"<a href='https://t.me/c/{str(chat.id)[4:]}/{event.id}'>Чат</a>"
-
-        log_message = f"✏️ Сообщение от {user_link} изменено в чате {chat_link}:\n{event.text}"
-        msg = await send_log_message(log_message)
-        await msg.edit(f"✏️ Сообщение от {user_link} изменено в чате {chat_link}:\n{event.text}")
-
-    if log_modes["chats"].get(event.chat_id, False):
-        user = await client.get_entity(event.sender_id)
-        chat = await client.get_entity(event.chat_id)
-        
-        user_link = f"<a href='tg://user?id={user.id}'>@{user.username if user.username else user.id}</a>"
-        chat_link = f"<a href='https://t.me/c/{str(chat.id)[4:]}/{event.id}'>Чат</a>"
-
-        log_message = f"✏️ Сообщение от {user_link} изменено в чате {chat_link}:\n{event.text}"
-        msg = await send_log_message(log_message)
-        await msg.edit(f"✏️ Сообщение от {user_link} изменено в чате {chat_link}:\n{event.text}")
-
-# --- Логирование удаления сообщений ---
-@client.on(events.MessageDeleted)
-async def on_message_deleted(event):
-    if log_modes["all"] or log_modes["ls"]:
-        user = await client.get_entity(event.sender_id)
-        chat = await client.get_entity(event.chat_id)
-        
-        user_link = f"<a href='tg://user?id={user.id}'>@{user.username if user.username else user.id}</a>"
-        chat_link = f"<a href='https://t.me/c/{str(chat.id)[4:]}/{event.id}'>Чат</a>"
-
-        deleted_message = f"❌ Сообщение удалено от {user_link} в чате {chat_link}."
-        msg = await send_log_message(deleted_message)
-        await msg.edit(f"❌ Сообщение удалено от {user_link} в чате {chat_link}.")
-
-    for chat_id in log_modes["chats"]:
-        if chat_id == event.chat_id or log_modes["all"]:
-            user = await client.get_entity(event.sender_id)
-            chat = await client.get_entity(event.chat_id)
-            
-            user_link = f"<a href='tg://user?id={user.id}'>@{user.username if user.username else user.id}</a>"
-            chat_link = f"<a href='https://t.me/c/{str(chat.id)[4:]}/{event.id}'>Чат</a>"
-
-            deleted_message = f"❌ Сообщение удалено в чате {chat_link} от {user_link}."
-            msg = await send_log_message(deleted_message)
-            await msg.edit(f"❌ Сообщение удалено в чате {chat_link} от {user_link}.")
+        await event.respond("❌ У вас нет доступа для использования этой команды.")
 
 # --- Команда .пинг ---
 @client.on(events.NewMessage(pattern=r"\.пинг"))
 async def ping(event):
     if event.sender_id == OWNER_ID:
         start_time = time.time()
-        # Отправляем сообщение с текстом
-        msg = await event.respond("📡 Пингуем...")
-        ping_time = time.time() - start_time
-        # Редактируем сообщение с пингом
-        await msg.edit(f"📡 Пинг: {ping_time * 1000:.2f} ms")
+        msg = await event.respond("📡 Проверка задержки...")
+        end_time = time.time()
+        delay = round((end_time - start_time) * 1000)  # Задержка в миллисекундах
+        await msg.edit(f"📡 Задержка: {delay}ms")
     else:
         msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
         await msg.edit("❌ У вас нет доступа для использования этой команды.")
@@ -265,28 +151,67 @@ async def ping(event):
 @client.on(events.NewMessage(pattern=r"\.помощь"))
 async def help_command(event):
     if event.sender_id == OWNER_ID:
-        help_text = """
-        Список команд:
-        .токен <token> - Установить токен для логирования.
-        .лог все - Включить логирование всех чатов.
-        .лог лс - Включить логирование личных сообщений.
-        .лог <chat> - Включить логирование для конкретного чата.
-        .задачи - Показать текущие задачи.
-        .автотайп <сообщение> - Включить автотайп (имитация набора текста).
-        .автотайп стоп - Остановить автотайп.
-        .пинг - Проверить пинг.
+        help_message = """
+        🤖 Список команд:
+
+        1. `.токен <token>` - Устанавливает токен для логирования.
+        2. `.лог все` - Включает логирование всех чатов.
+        3. `.лог лс` - Включает логирование личных сообщений.
+        4. `.лог @username` - Включает логирование чата по @username.
+        5. `.задачи` - Показывает текущие настройки задач (логирование).
+        6. `.пинг` - Показывает задержку сервера.
+        7. `.логстоп` - Останавливает логирование всех сообщений.
+        
+        🤖 Примечание:
+        - Все команды редактируются автоматически.
+        
+        📲 Бот разработан и поддерживается пользователем @neetchan.
         """
-        msg = await event.respond(help_text)
-        await msg.edit(help_text)
+        msg = await event.respond(help_message)
+        await msg.edit(help_message)  # Редактируем сразу
     else:
         msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
         await msg.edit("❌ У вас нет доступа для использования этой команды.")
 
+# --- Команда .логстоп ---
+@client.on(events.NewMessage(pattern=r"\.логстоп"))
+async def log_stop(event):
+    if event.sender_id == OWNER_ID:
+        log_modes["all"] = False
+        log_modes["ls"] = False
+        log_modes["chats"] = {}
+        await event.respond("✅ Логирование всех сообщений отключено.")
+    else:
+        await event.respond("❌ У вас нет доступа для использования этой команды.")
+
+# --- Логирование изменения сообщений ---
+@client.on(events.MessageEdited)
+async def on_message_edited(event):
+    if log_modes["all"] or log_modes["ls"]:
+        log_message = f"✏️ Сообщение от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a> изменено в чате <a href='https://t.me/c/{event.chat_id}/{event.message.id}'>Чат</a>: {event.text}"
+        await send_log_message(log_message)
+
+    if log_modes["chats"].get(event.chat_id, False):
+        log_message = f"✏️ Сообщение от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a> изменено в чате <a href='https://t.me/c/{event.chat_id}/{event.message.id}'>Чат</a>: {event.text}"
+        await send_log_message(log_message)
+
+# --- Логирование удаления сообщений ---
+@client.on(events.MessageDeleted)
+async def on_message_deleted(event):
+    if log_modes["all"] or log_modes["ls"]:
+        deleted_message = f"❌ Сообщение удалено от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a>."
+        await send_log_message(deleted_message)
+
+    for chat_id in log_modes["chats"]:
+        if chat_id == event.chat_id or log_modes["all"]:
+            deleted_message = f"❌ Сообщение удалено в чате <a href='https://t.me/c/{event.chat_id}/{event.message.id}'>Чат</a> от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a>."
+            await send_log_message(deleted_message)
+
 # --- Запуск бота ---
 async def main():
-    print("Бот Shizuku запущен.")
+    print("Бот Shizuku запущен. Приятной работы.")
     await client.start()  # Подключение к Telegram
     await client.run_until_disconnected()  # Ожидание событий
 
 if __name__ == "__main__":
-    asyncio.run(main())  # Используем asyncio для запуска асинхронной функции
+    asyncio.run(main())
