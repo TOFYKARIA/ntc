@@ -1,9 +1,10 @@
 import asyncio
+import random
 import os
-import json
-import requests
 from telethon import TelegramClient, events
+import requests
 import time
+import json
 
 # Конфигурационный файл для хранения данных
 config_file = "config.json"
@@ -134,45 +135,6 @@ async def show_tasks(event):
     else:
         await event.respond("❌ У вас нет доступа для использования этой команды.")
 
-# --- Команда .пинг ---
-@client.on(events.NewMessage(pattern=r"\.пинг"))
-async def ping(event):
-    if event.sender_id == OWNER_ID:
-        start_time = time.time()
-        msg = await event.respond("📡 Проверка задержки...")
-        end_time = time.time()
-        delay = round((end_time - start_time) * 1000)  # Задержка в миллисекундах
-        await msg.edit(f"📡 Задержка: {delay}ms")
-    else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
-
-# --- Команда .помощь ---
-@client.on(events.NewMessage(pattern=r"\.помощь"))
-async def help_command(event):
-    if event.sender_id == OWNER_ID:
-        help_message = """
-        🤖 Список команд:
-
-        1. `.токен <token>` - Устанавливает токен для логирования.
-        2. `.лог все` - Включает логирование всех чатов.
-        3. `.лог лс` - Включает логирование личных сообщений.
-        4. `.лог @username` - Включает логирование чата по @username.
-        5. `.задачи` - Показывает текущие настройки задач (логирование).
-        6. `.пинг` - Показывает задержку сервера.
-        7. `.логстоп` - Останавливает логирование всех сообщений.
-        
-        🤖 Примечание:
-        - Все команды редактируются автоматически.
-        
-        📲 Бот разработан и поддерживается пользователем @neetchan.
-        """
-        msg = await event.respond(help_message)
-        await msg.edit(help_message)  # Редактируем сразу
-    else:
-        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
-        await msg.edit("❌ У вас нет доступа для использования этой команды.")
-
 # --- Команда .логстоп ---
 @client.on(events.NewMessage(pattern=r"\.логстоп"))
 async def log_stop(event):
@@ -180,32 +142,74 @@ async def log_stop(event):
         log_modes["all"] = False
         log_modes["ls"] = False
         log_modes["chats"] = {}
-        await event.respond("✅ Логирование всех сообщений отключено.")
+        await event.respond("✅ Логирование остановлено.")
     else:
         await event.respond("❌ У вас нет доступа для использования этой команды.")
 
-# --- Логирование изменения сообщений ---
+# --- Функция для получения случайного изображения с API waifu ---
+def get_random_waifu_image():
+    url = "https://api.waifu.pics/sfw/waifu"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        return data['url']
+    return None
+
+# --- Команда .аниме ---
+@client.on(events.NewMessage(pattern=r"\.аниме"))
+async def anime_command(event):
+    if event.sender_id == OWNER_ID:  # Чтобы только вы могли использовать команду
+        image_url = get_random_waifu_image()
+        if image_url:
+            # Отправляем изображение в чат
+            msg = await event.respond(f"Вот случайное изображение для вас!\n{image_url}")
+            await msg.delete()  # Удаляем сообщение через несколько секунд
+        else:
+            msg = await event.respond("❌ Не удалось получить изображение. Попробуйте позже.")
+            await msg.delete()  # Удаляем сообщение через несколько секунд
+    else:
+        msg = await event.respond("❌ У вас нет доступа для использования этой команды.")
+        await msg.delete()  # Удаляем сообщение через несколько секунд
+
+# --- Команда .помощь ---
+@client.on(events.NewMessage(pattern=r"\.помощь"))
+async def help_command(event):
+    if event.sender_id == OWNER_ID:
+        help_text = """
+        📜 Доступные команды:
+
+        .токен <токен> - Установить токен для логирования.
+        .лог все - Включить логирование всех чатов.
+        .лог лс - Включить логирование личных сообщений.
+        .лог [chat_id или @username] - Включить логирование для чата.
+        .задачи - Показать текущий статус задач.
+        .логстоп - Остановить логирование.
+        .аниме - Отправить случайное изображение с API waifu.
+        
+        🖋️ Разработано @neetchan
+        """
+        await event.respond(help_text)
+    else:
+        await event.respond("❌ У вас нет доступа для использования этой команды.")
+
+# --- Функция для обработки изменений и удалений сообщений ---
 @client.on(events.MessageEdited)
 async def on_message_edited(event):
     if log_modes["all"] or log_modes["ls"]:
-        log_message = f"✏️ Сообщение от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a> изменено в чате <a href='https://t.me/c/{event.chat_id}/{event.message.id}'>Чат</a>: {event.text}"
-        await send_log_message(log_message)
+        message = f"✏️ Сообщение от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a> изменено в чате "
+        if event.chat:
+            chat_name = f"@{event.chat.username}" if event.chat.username else f"ID: {event.chat.id}"
+            message += f"<a href='https://t.me/{chat_name}/{event.message.id}'>{chat_name}</a>: {event.text}"
+        await send_log_message(message)
 
-    if log_modes["chats"].get(event.chat_id, False):
-        log_message = f"✏️ Сообщение от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a> изменено в чате <a href='https://t.me/c/{event.chat_id}/{event.message.id}'>Чат</a>: {event.text}"
-        await send_log_message(log_message)
-
-# --- Логирование удаления сообщений ---
 @client.on(events.MessageDeleted)
 async def on_message_deleted(event):
     if log_modes["all"] or log_modes["ls"]:
-        deleted_message = f"❌ Сообщение удалено от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a>."
-        await send_log_message(deleted_message)
-
-    for chat_id in log_modes["chats"]:
-        if chat_id == event.chat_id or log_modes["all"]:
-            deleted_message = f"❌ Сообщение удалено в чате <a href='https://t.me/c/{event.chat_id}/{event.message.id}'>Чат</a> от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a>."
-            await send_log_message(deleted_message)
+        message = f"❌ Сообщение удалено от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a>."
+        if event.chat:
+            chat_name = f"@{event.chat.username}" if event.chat.username else f"ID: {event.chat.id}"
+            message += f" В чате <a href='https://t.me/{chat_name}/{event.message.id}'>{chat_name}</a>."
+        await send_log_message(message)
 
 # --- Запуск бота ---
 async def main():
@@ -214,4 +218,4 @@ async def main():
     await client.run_until_disconnected()  # Ожидание событий
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main())  # Используем asyncio для запуска асинхронной функции
