@@ -1,13 +1,13 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import openai
+import requests
 
-# Вставьте свой Telegram Bot токен и OpenAI API ключ
+# Вставьте свой Telegram Bot токен и Hugging Face API ключ
 TELEGRAM_TOKEN = "6389857601:AAG7ZWpdyVhmV-lU_iDcZNFsbuXWXSDxICM"
-OPENAI_API_KEY = "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"
+HUGGING_FACE_API_KEY = "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"  # Ваш ключ Hugging Face
 
-# Настройка OpenAI API
-openai.api_key = OPENAI_API_KEY
+# URL Hugging Face для использования модели
+HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/gpt2"  # Используем GPT-2 модель для примера
 
 # Приветственное сообщение
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -19,16 +19,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def chat_with_gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
 
-    # Запрос к ChatGPT
+    # Запрос к Hugging Face
+    headers = {
+        "Authorization": f"Bearer {HUGGING_FACE_API_KEY}"
+    }
+    payload = {
+        "inputs": user_message
+    }
+
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Ты маленькая девочка по имени Шизуку. Ты веселая, добрая и говоришь с пользователями в женском детском тоне. "},
-                {"role": "user", "content": user_message}
-            ]
-        )
-        reply = response['choices'][0]['message']['content']
+        response = requests.post(HUGGING_FACE_API_URL, headers=headers, json=payload)
+        response.raise_for_status()  # Проверяем на ошибки
+        response_json = response.json()
+        
+        # Ответ от модели
+        reply = response_json[0]["generated_text"]
+        
+        # Отправка ответа пользователю
         await update.message.reply_text(reply)
     except Exception as e:
         await update.message.reply_text("Ой, кажется, что-то пошло не так... Попробуем снова позже!")
