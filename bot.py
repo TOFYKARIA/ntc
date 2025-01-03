@@ -1,5 +1,6 @@
 import os
 import requests
+import asyncio
 from telethon import TelegramClient, events
 
 # Запрос данных при запуске
@@ -100,9 +101,13 @@ async def remove_module(event):
     else:
         await event.edit("❌ [Нет доступа]")
 
-# --- Запуск ---
-print("Shizuku запущен. Ожидание событий...")
-await create_logs_group()  # Создание группы при старте
+# --- Главная асинхронная функция ---
+async def main():
+    print("Shizuku запущен. Ожидание событий...")
+    await create_logs_group()  # Создание группы при старте
+    await client.start()
+    await client.run_until_disconnected()
 
-client.start()
-client.run_until_disconnected()
+# Запуск бота
+if __name__ == "__main__":
+    asyncio.run(main())  # Используем asyncio для запуска асинхронной функции
