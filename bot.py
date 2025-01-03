@@ -199,7 +199,7 @@ async def on_message_edited(event):
         message = f"✏️ Сообщение от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a> изменено в чате "
         if event.chat:
             chat_name = f"@{event.chat.username}" if event.chat.username else f"ID: {event.chat.id}"
-            message += f"<a href='https://t.me/{chat_name}/{event.message.id}'>{chat_name}</a>: {event.text}"
+            message += 'https://t.me/{chat_name}/{event.message.id}'>{chat_name}: {event.text}"
         await send_log_message(message)
 
 @client.on(events.MessageDeleted)
@@ -208,7 +208,7 @@ async def on_message_deleted(event):
         message = f"❌ Сообщение удалено от <a href='tg://user?id={event.sender_id}'>@{event.sender.username}</a>."
         if event.chat:
             chat_name = f"@{event.chat.username}" if event.chat.username else f"ID: {event.chat.id}"
-            message += f" В чате <a href='https://t.me/{chat_name}/{event.message.id}'>{chat_name}</a>."
+            message += f" В чате 'https://t.me/{chat_name}/{event.message.id}'>{chat_name}."
         await send_log_message(message)
 
 # --- Запуск бота ---
