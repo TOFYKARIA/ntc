@@ -4,11 +4,45 @@ import os
 from telethon import TelegramClient, events
 import requests
 import time
+import json
 
-# Ваши данные
-API_ID = 'your_api_id'
-API_HASH = 'your_api_hash'
-OWNER_ID = 123456789  # Ваш Telegram ID
+# Конфигурационный файл для хранения данных
+config_file = "config.json"
+
+# Проверка и загрузка конфигурации (API ID и API Hash)
+def load_config():
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as file:
+            config = json.load(file)
+        return config.get('API_ID'), config.get('API_HASH')
+    return None, None
+
+# Сохранение конфигурации (API ID и API Hash)
+def save_config(api_id, api_hash):
+    config = {
+        "API_ID": api_id,
+        "API_HASH": api_hash
+    }
+    with open(config_file, 'w') as file:
+        json.dump(config, file)
+
+# Запрос API ID и API Hash, если их нет в конфиге
+def get_api_credentials():
+    api_id, api_hash = load_config()
+    if api_id and api_hash:
+        return api_id, api_hash
+    else:
+        print("Введите ваш API ID и API Hash.")
+        api_id = input("API ID: ")
+        api_hash = input("API Hash: ")
+        save_config(api_id, api_hash)  # Сохраняем данные в файл
+        return api_id, api_hash
+
+# Получаем API ID и API Hash
+API_ID, API_HASH = get_api_credentials()
+
+# Ваш ID в Telegram (например, можно узнать через @userinfobot)
+OWNER_ID = 123456789  # Замените на ваш Telegram ID
 
 # Инициализация клиента
 client = TelegramClient('shizuku_bot', API_ID, API_HASH)
