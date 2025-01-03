@@ -2,43 +2,46 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import requests
 
-# Вставьте свой Telegram Bot токен и Hugging Face API ключ
+# Вставьте свой Telegram Bot токен и API ключ Hugging Face
 TELEGRAM_TOKEN = "6389857601:AAG7ZWpdyVhmV-lU_iDcZNFsbuXWXSDxICM"
-HUGGING_FACE_API_KEY = "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"  # Ваш ключ Hugging Face
-
-# URL Hugging Face для использования модели
-HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/gpt2"  # Используем GPT-2 модель для примера
+HUGGING_FACE_API_KEY = "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"
+HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/gpt2"  # Пример модели GPT2, используемой на Hugging Face
 
 # Приветственное сообщение
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Приветик! Я Шизуку, твоя маленькая помощница! Давай дружить и болтать обо всём на свете!"
+        "Приветик! Я Шизуку, твоя маленькая помощница! Давай дружить и играть! 🎉 Расскажи мне, что ты хочешь узнать или о чем поболтать! 🌟"
     )
 
 # Обработка сообщений
 async def chat_with_gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
+    # Проверяем, что сообщение существует и содержит текст
+    if update.message and update.message.text:
+        user_message = update.message.text
 
-    # Запрос к Hugging Face
-    headers = {
-        "Authorization": f"Bearer {HUGGING_FACE_API_KEY}"
-    }
-    payload = {
-        "inputs": user_message
-    }
+        # Запрос к Hugging Face с добавлением детского стиля
+        headers = {
+            "Authorization": f"Bearer {HUGGING_FACE_API_KEY}"
+        }
+        payload = {
+            "inputs": f"Ты маленькая девочка, очень веселая и наивная. Ты говоришь простыми словами, и отвечаешь с радостью и улыбкой. {user_message}"
+        }
 
-    try:
-        response = requests.post(HUGGING_FACE_API_URL, headers=headers, json=payload)
-        response.raise_for_status()  # Проверяем на ошибки
-        response_json = response.json()
-        
-        # Ответ от модели
-        reply = response_json[0]["generated_text"]
-        
-        # Отправка ответа пользователю
-        await update.message.reply_text(reply)
-    except Exception as e:
-        await update.message.reply_text("Ой, кажется, что-то пошло не так... Попробуем снова позже!")
+        try:
+            response = requests.post(HUGGING_FACE_API_URL, headers=headers, json=payload)
+            response.raise_for_status()  # Проверяем на ошибки
+            response_json = response.json()
+            
+            # Ответ от модели
+            reply = response_json[0]["generated_text"]
+            
+            # Отправка ответа пользователю
+            await update.message.reply_text(f"Ой! Я думаю вот что по твоему вопросику: {reply} 😊🎈")
+        except Exception as e:
+            await update.message.reply_text("Ой-ой! Что-то пошло не так... Может попробуем позже? 😥")
+    else:
+        # Если нет текста в сообщении
+        await update.message.reply_text("Эй! Ты что-то не написал... Давай поболтаем! ✨💖")
 
 # Основная функция запуска бота
 def main():
